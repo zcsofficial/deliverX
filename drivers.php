@@ -25,6 +25,96 @@ if ($role !== 'admin' && $role !== 'driver') {
     exit();
 }
 
+// Function to send email and insert notification
+function sendStatusUpdateEmailAndNotify($conn, $order_id, $new_status, $driver_name, $driver_id) {
+    // Fetch admin details
+    $adminQuery = "SELECT id, email FROM users WHERE role = 'admin' LIMIT 1";
+    $adminResult = $conn->query($adminQuery);
+    $admin = $adminResult->fetch_assoc();
+    $adminId = $admin['id'] ?? null;
+    $adminEmail = $admin['email'] ?? 'admin@example.com';
+
+    // Fetch customer details
+    $customerQuery = "SELECT users.id, users.email 
+                      FROM orders 
+                      JOIN users ON orders.customer_id = users.id 
+                      WHERE orders.order_id = ?";
+    $stmtCustomer = $conn->prepare($customerQuery);
+    $stmtCustomer->bind_param("s", $order_id);
+    $stmtCustomer->execute();
+    $customerResult = $stmtCustomer->get_result();
+    $customer = $customerResult->fetch_assoc();
+    $customerId = $customer['id'] ?? null;
+    $customerEmail = $customer['email'] ?? null;
+    $stmtCustomer->close();
+
+    if (!$customerId || !$adminId) return; // Skip if no customer or admin found
+
+    // Email template
+    $subject = "DeliverX Order Status Update - Order #$order_id";
+    $message = "
+    <html>
+    <head>
+        <title>DeliverX Order Update</title>
+        <style>
+            body { font-family: Arial, sans-serif; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e5e5; border-radius: 8px; }
+            .header { background-color: #1A1A1A; color: white; padding: 10px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { padding: 20px; }
+            .footer { text-align: center; font-size: 12px; color: #777; padding-top: 20px; }
+            h1 { font-family: 'Pacifico', cursive; margin: 0; }
+            .status { font-weight: bold; color: " . ($new_status === 'Delivered' ? '#34C759' : ($new_status === 'In Transit' ? '#00A3E0' : ($new_status === 'Pending' ? '#FF9500' : '#FF2D55'))) . "; }
+        </style>
+    </head>
+    <body>
+        <div class='container'>
+            <div class='header'>
+                <h1>DeliverX</h1>
+            </div>
+            <div class='content'>
+                <p>Hello,</p>
+                <p>We wanted to inform you that the status of Order <strong>#$order_id</strong> has been updated by driver <strong>$driver_name</strong>.</p>
+                <p>New Status: <span class='status'>$new_status</span></p>
+                <p>Thank you for choosing DeliverX. If you have any questions, feel free to contact us.</p>
+            </div>
+            <div class='footer'>
+                <p>© " . date('Y') . " DeliverX. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>";
+
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+    $headers .= "From: DeliverX <no-reply@deliverx.com>\r\n"; // Replace with your email
+
+    // Send to admin
+    mail($adminEmail, $subject, $message, $headers);
+
+    // Send to customer
+    if ($customerEmail) {
+        mail($customerEmail, $subject, $message, $headers);
+    }
+
+    // Insert notifications into the notifications table
+    $notificationMessage = "Order #$order_id status updated to '$new_status' by driver $driver_name.";
+    $notificationType = 'Order Update';
+
+    // Notification for admin
+    $adminNotifyQuery = "INSERT INTO notifications (user_id, message, type, created_at) VALUES (?, ?, ?, NOW())";
+    $stmtAdminNotify = $conn->prepare($adminNotifyQuery);
+    $stmtAdminNotify->bind_param("iss", $adminId, $notificationMessage, $notificationType);
+    $stmtAdminNotify->execute();
+    $stmtAdminNotify->close();
+
+    // Notification for customer
+    $customerNotifyQuery = "INSERT INTO notifications (user_id, message, type, created_at) VALUES (?, ?, ?, NOW())";
+    $stmtCustomerNotify = $conn->prepare($customerNotifyQuery);
+    $stmtCustomerNotify->bind_param("iss", $customerId, $notificationMessage, $notificationType);
+    $stmtCustomerNotify->execute();
+    $stmtCustomerNotify->close();
+}
+
 // Handle status update for drivers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $role === 'driver' && isset($_POST['order_id']) && isset($_POST['status'])) {
     $order_id = $conn->real_escape_string($_POST['order_id']);
@@ -39,6 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $role === 'driver' && isset($_POST[
         $stmtTracking->bind_param("sis", $order_id, $user_id, $new_status);
         $stmtTracking->execute();
         $stmtTracking->close();
+
+        // Send email and insert notifications
+        sendStatusUpdateEmailAndNotify($conn, $order_id, $new_status, $fullname, $user_id);
     }
     $stmtUpdate->close();
 }
@@ -73,7 +166,6 @@ if ($role === 'admin') {
 }
 
 mysqli_stmt_close($stmtUser);
-// Do NOT close $conn here; keep it open for later use
 ?>
 
 <!DOCTYPE html>
@@ -368,18 +460,15 @@ mysqli_stmt_close($stmtUser);
 
         function closeAddDriverModal() {
             document.getElementById('addDriverModal').style.display = 'none';
-            // Optionally clear success/error messages from URL
             window.history.replaceState({}, document.title, "drivers.php");
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Mobile menu toggle
             document.getElementById('menuToggle').addEventListener('click', function() {
                 const sidebar = document.getElementById('sidebar');
                 sidebar.classList.toggle('open');
             });
 
-            // Close sidebar when clicking outside on mobile
             document.addEventListener('click', function(event) {
                 const sidebar = document.getElementById('sidebar');
                 const toggle = document.getElementById('menuToggle');
@@ -388,14 +477,12 @@ mysqli_stmt_close($stmtUser);
                 }
             });
 
-            // Close modal when clicking outside
             window.addEventListener('click', function(event) {
                 if (event.target === document.getElementById('addDriverModal')) {
                     closeAddDriverModal();
                 }
             });
 
-            // Auto-open modal if success/error message is present
             <?php if (isset($_GET['success']) || isset($_GET['error'])): ?>
                 openAddDriverModal();
             <?php endif; ?>
@@ -403,7 +490,4 @@ mysqli_stmt_close($stmtUser);
     </script>
 </body>
 </html>
-<?php
-// Close the connection at the very end
-$conn->close();
-?>
+<?php $conn->close(); ?>

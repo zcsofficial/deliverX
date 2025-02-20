@@ -5,7 +5,7 @@ $filter = $_POST['filter'] ?? 'all';
 $sort = $_POST['sort'] ?? 'desc';
 $search = $_POST['filter'] === 'search' ? $_POST['sort'] : '';
 
-$query = "SELECT id, customer_name, destination, status, driver_name FROM orders";
+$query = "SELECT order_id, customer_name, destination, status, driver_name FROM orders";
 if ($search) {
     $query .= " WHERE id LIKE ? OR customer_name LIKE ? OR destination LIKE ?";
     $stmt = mysqli_prepare($conn, $query);
