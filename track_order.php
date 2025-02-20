@@ -64,6 +64,7 @@ $current_status_step = $status_steps[$order['status']] ?? 0;
         <div class="flex items-center gap-4">
             <div class="text-sm">Order ID: #<?= htmlspecialchars($order['order_id']) ?></div>
             <div class="text-sm">ETA: <?= htmlspecialchars($order['eta'] ?? 'N/A') ?></div>
+            <li><a href="logout.php" class="text-gray-600 hover:text-primary">Logout</a></li>
         </div>
     </div>
 </header>

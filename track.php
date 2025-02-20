@@ -49,6 +49,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <li><a href="#" class="text-gray-600 hover:text-primary">Track</a></li>
                     <li><a href="#" class="text-gray-600 hover:text-primary">Services</a></li>
                     <li><a href="#" class="text-gray-600 hover:text-primary">Support</a></li>
+                    <li><a href="#" class="text-gray-600 hover:text-primary">Logout</a></li>
                 </ul>
             </nav>
         </div>
