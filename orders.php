@@ -2,21 +2,25 @@
 session_start();
 require 'config.php'; // Include database connection
 
-// Check if the user is logged in and has admin role
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+// Check if the user is logged in
+if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
-// Fetch user details
+$is_admin = ($_SESSION['role'] === 'admin');
+$is_driver = ($_SESSION['role'] === 'driver');
+$is_customer = ($_SESSION['role'] === 'customer' || (!$is_admin && !$is_driver)); // Default to customer if role is undefined
 $user_id = $_SESSION['user_id'];
+
+// Fetch user details
 $queryUser = "SELECT fullname FROM users WHERE id = ?";
 $stmtUser = $conn->prepare($queryUser);
 $stmtUser->bind_param("i", $user_id);
 $stmtUser->execute();
 $resultUser = $stmtUser->get_result();
 $user = $resultUser->fetch_assoc();
-$fullname = $user['fullname'] ?? 'Admin';
+$fullname = $user['fullname'] ?? ($is_admin ? 'Admin' : ($is_driver ? 'Driver' : 'Customer'));
 $stmtUser->close();
 
 // Handle search, filter, and sorting with sanitized inputs
@@ -25,14 +29,21 @@ $filter_status = $_GET['status'] ?? '';
 $sort_by = $_GET['sort'] ?? 'created_at';
 
 // Validate sort_by to prevent SQL injection
-$valid_sort_columns = ['created_at', 'users.fullname']; // Explicitly use users.fullname to avoid ambiguity
+$valid_sort_columns = ['created_at', 'users.fullname'];
 $sort_by = in_array($sort_by, $valid_sort_columns) ? $sort_by : 'created_at';
 
-// Query orders with customer details from the users table
+// Query orders based on role
 $query = "SELECT orders.*, users.fullname AS customer_name, users.email 
           FROM orders 
-          JOIN users ON orders.customer_id = users.id 
-          WHERE users.role = 'customer'";
+          JOIN users ON orders.customer_id = users.id ";
+
+if ($is_admin) {
+    $query .= "WHERE users.role = 'customer'";
+} elseif ($is_driver) {
+    $query .= "WHERE orders.driver_id = ?";
+} else { // Customer
+    $query .= "WHERE orders.customer_id = ?";
+}
 
 if (!empty($search)) {
     $search = $conn->real_escape_string($search);
@@ -47,7 +58,14 @@ if (!empty($filter_status)) {
 $query .= " ORDER BY $sort_by DESC";
 
 try {
-    $result = $conn->query($query);
+    if ($is_admin) {
+        $result = $conn->query($query);
+    } else {
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    }
     if (!$result) {
         throw new Exception("Query failed: " . $conn->error);
     }
@@ -55,8 +73,8 @@ try {
     die("Error: " . $e->getMessage());
 }
 
-// Handle export functionality
-if (isset($_GET['export'])) {
+// Handle export functionality (only for admin)
+if ($is_admin && isset($_GET['export'])) {
     header("Content-Type: application/vnd.ms-excel");
     header("Content-Disposition: attachment; filename=orders_" . date('Ymd_His') . ".html");
 
@@ -121,7 +139,6 @@ if (isset($_GET['export'])) {
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
-        :where([class^="ri-"])::before { content: "\f3c2"; }
         .order-status-timeline::before {
             content: '';
             position: absolute;
@@ -148,35 +165,31 @@ if (isset($_GET['export'])) {
             .main-content {
                 margin-left: 0 !important;
             }
-            .header {
-                padding-left: 1rem;
-                padding-right: 1rem;
-            }
-            .grid-cols-3 {
-                grid-template-columns: repeat(1, minmax(0, 1fr));
-            }
         }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-
     <div class="flex h-screen">
         <aside class="w-64 bg-primary text-white fixed h-full sidebar" id="sidebar">
             <div class="p-4">
                 <h1 class="text-2xl font-['Pacifico'] mb-8">DeliverX</h1>
                 <nav class="space-y-4">
-                    <a href="dashboard.php" class="flex items-center space-x-3 p-2 hover:bg-white/10 rounded-button">
-                        <span class="w-5 h-5 flex items-center justify-center"><i class="ri-dashboard-line"></i></span>
-                        <span>Dashboard</span>
-                    </a>
+                    <?php if ($is_admin): ?>
+                        <a href="dashboard.php" class="flex items-center space-x-3 p-2 hover:bg-white/10 rounded-button">
+                            <span class="w-5 h-5 flex items-center justify-center"><i class="ri-dashboard-line"></i></span>
+                            <span>Dashboard</span>
+                        </a>
+                    <?php endif; ?>
                     <a href="orders.php" class="flex items-center space-x-3 p-2 bg-white/10 rounded-button">
                         <span class="w-5 h-5 flex items-center justify-center"><i class="ri-box-line"></i></span>
-                        <span>Orders</span>
+                        <span><?= $is_customer ? 'My Orders' : 'Orders' ?></span>
                     </a>
-                    <a href="drivers.php" class="flex items-center space-x-3 p-2 hover:bg-white/10 rounded-button">
-                        <span class="w-5 h-5 flex items-center justify-center"><i class="ri-user-line"></i></span>
-                        <span>Drivers</span>
-                    </a>
+                    <?php if ($is_admin || $is_driver): ?>
+                        <a href="drivers.php" class="flex items-center space-x-3 p-2 hover:bg-white/10 rounded-button">
+                            <span class="w-5 h-5 flex items-center justify-center"><i class="ri-user-line"></i></span>
+                            <span>Drivers</span>
+                        </a>
+                    <?php endif; ?>
                     <a href="track.php" class="flex items-center space-x-3 p-2 hover:bg-white/10 rounded-button">
                         <span class="w-5 h-5 flex items-center justify-center"><i class="ri-map-pin-line"></i></span>
                         <span>Tracking</span>
@@ -194,14 +207,14 @@ if (isset($_GET['export'])) {
                     </div>
                     <div>
                         <div class="font-medium"><?= htmlspecialchars($fullname) ?></div>
-                        <div class="text-sm text-gray-400">Admin</div>
+                        <div class="text-sm text-gray-400"><?= $is_admin ? 'Admin' : ($is_driver ? 'Driver' : 'Customer') ?></div>
                     </div>
                 </div>
             </div>
         </aside>
 
         <div class="flex-1 main-content ml-64" id="mainContent">
-            <header class="bg-white border-b border-gray-200 px-6 py-4 header flex items-center justify-between">
+            <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                 <div class="flex items-center">
                     <button id="menuToggle" class="md:hidden w-10 h-10 flex items-center justify-center text-gray-600">
                         <i class="ri-menu-line text-xl"></i>
@@ -220,7 +233,7 @@ if (isset($_GET['export'])) {
             <main class="p-6">
                 <div class="flex justify-between items-center mb-6">
                     <div class="flex items-center gap-4">
-                        <h1 class="text-2xl font-semibold text-gray-900">Orders</h1>
+                        <h1 class="text-2xl font-semibold text-gray-900"><?= $is_customer ? 'My Orders' : 'Orders' ?></h1>
                         <div class="flex gap-2">
                             <form id="filterForm" method="GET">
                                 <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
@@ -231,22 +244,28 @@ if (isset($_GET['export'])) {
                                     <option value="Delivered" <?= $filter_status == 'Delivered' ? 'selected' : '' ?>>Delivered</option>
                                     <option value="Cancelled" <?= $filter_status == 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
                                 </select>
-                                <select name="sort" onchange="this.form.submit()" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 !rounded-button hover:bg-gray-50 whitespace-nowrap flex items-center gap-2">
-                                    <option value="created_at" <?= $sort_by == 'created_at' ? 'selected' : '' ?>>Sort by Date</option>
-                                    <option value="users.fullname" <?= $sort_by == 'users.fullname' ? 'selected' : '' ?>>Sort by Customer</option>
-                                </select>
+                                <?php if ($is_admin): ?>
+                                    <select name="sort" onchange="this.form.submit()" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 !rounded-button hover:bg-gray-50 whitespace-nowrap flex items-center gap-2">
+                                        <option value="created_at" <?= $sort_by == 'created_at' ? 'selected' : '' ?>>Sort by Date</option>
+                                        <option value="users.fullname" <?= $sort_by == 'users.fullname' ? 'selected' : '' ?>>Sort by Customer</option>
+                                    </select>
+                                <?php endif; ?>
                             </form>
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <a href="orders.php?export=1" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 !rounded-button hover:bg-gray-50 whitespace-nowrap flex items-center gap-2">
-                            <i class="ri-download-line"></i>
-                            Export
-                        </a>
-                        <button onclick="openModal()" class="px-4 py-2 bg-primary text-white !rounded-button hover:bg-gray-800 whitespace-nowrap flex items-center gap-2">
-                            <i class="ri-add-line"></i>
-                            New Order
-                        </button>
+                        <?php if ($is_admin): ?>
+                            <a href="orders.php?export=1" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 !rounded-button hover:bg-gray-50 whitespace-nowrap flex items-center gap-2">
+                                <i class="ri-download-line"></i>
+                                Export
+                            </a>
+                        <?php endif; ?>
+                        <?php if ($is_admin || $is_customer): ?>
+                            <button onclick="openModal()" class="px-4 py-2 bg-primary text-white !rounded-button hover:bg-gray-800 whitespace-nowrap flex items-center gap-2">
+                                <i class="ri-add-line"></i>
+                                New Order
+                            </button>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -261,10 +280,12 @@ if (isset($_GET['export'])) {
                                 <span class="px-2 py-1 <?= $row['status'] == 'Delivered' ? 'bg-green-100 text-green-800' : ($row['status'] == 'In Transit' ? 'bg-blue-100 text-blue-800' : ($row['status'] == 'Pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')) ?> text-sm rounded-full"><?= htmlspecialchars($row['status']) ?></span>
                             </div>
                             <div class="space-y-3">
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">Customer</span>
-                                    <span class="font-medium"><?= htmlspecialchars($row['customer_name']) ?></span>
-                                </div>
+                                <?php if ($is_admin || $is_driver): ?>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Customer</span>
+                                        <span class="font-medium"><?= htmlspecialchars($row['customer_name']) ?></span>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Pickup</span>
                                     <span class="font-medium"><?= htmlspecialchars($row['pickup_location']) ?></span>
@@ -296,46 +317,56 @@ if (isset($_GET['export'])) {
     </div>
 
     <!-- Add Order Modal -->
-    <div id="addOrderModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-full max-w-md">
-            <h3 class="text-lg font-bold mb-4">Add New Order</h3>
-            <form action="add_order.php" method="POST">
-                <select name="customer_id" class="p-2 border rounded w-full mb-2" required>
-                    <option value="">Select Customer</option>
-                    <?php
-                    $customers = $conn->query("SELECT id, fullname FROM users WHERE role = 'customer'");
-                    while ($customer = $customers->fetch_assoc()) {
-                        echo "<option value='{$customer['id']}'>" . htmlspecialchars($customer['fullname']) . "</option>";
-                    }
-                    $customers->free();
-                    ?>
-                </select>
-                <input type="text" name="order_id" placeholder="Order ID (e.g., ORD-20250220)" class="p-2 border rounded w-full mb-2" required>
-                <input type="text" name="pickup_location" placeholder="Pickup Location" class="p-2 border rounded w-full mb-2" required>
-                <input type="text" name="destination" placeholder="Destination" class="p-2 border rounded w-full mb-2" required>
-                <select name="status" class="p-2 border rounded w-full mb-2">
-                    <option value="Pending">Pending</option>
-                    <option value="In Transit">In Transit</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Cancelled">Cancelled</option>
-                </select>
-                <select name="driver_id" class="p-2 border rounded w-full mb-2">
-                    <option value="">Select Driver (optional)</option>
-                    <?php
-                    $drivers = $conn->query("SELECT id, fullname FROM users WHERE role = 'driver'");
-                    while ($driver = $drivers->fetch_assoc()) {
-                        echo "<option value='{$driver['id']}'>" . htmlspecialchars($driver['fullname']) . "</option>";
-                    }
-                    $drivers->free();
-                    ?>
-                </select>
-                <div class="flex space-x-2">
-                    <button type="submit" class="p-2 bg-green-500 text-white rounded">Save</button>
-                    <button type="button" onclick="closeModal()" class="p-2 bg-gray-500 text-white rounded">Cancel</button>
-                </div>
-            </form>
+    <?php if ($is_admin || $is_customer): ?>
+        <div id="addOrderModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                <h3 class="text-lg font-bold mb-4">Add New Order</h3>
+                <form action="add_order.php" method="POST">
+                    <?php if ($is_admin): ?>
+                        <select name="customer_id" class="p-2 border rounded w-full mb-2" required>
+                            <option value="">Select Customer</option>
+                            <?php
+                            $customers = $conn->query("SELECT id, fullname FROM users WHERE role = 'customer'");
+                            while ($customer = $customers->fetch_assoc()) {
+                                echo "<option value='{$customer['id']}'>" . htmlspecialchars($customer['fullname']) . "</option>";
+                            }
+                            $customers->free();
+                            ?>
+                        </select>
+                    <?php else: ?>
+                        <input type="hidden" name="customer_id" value="<?= $user_id ?>">
+                    <?php endif; ?>
+                    <input type="text" name="order_id" placeholder="Order ID (e.g., ORD-20250220)" class="p-2 border rounded w-full mb-2" required>
+                    <input type="text" name="pickup_location" placeholder="Pickup Location" class="p-2 border rounded w-full mb-2" required>
+                    <input type="text" name="destination" placeholder="Destination" class="p-2 border rounded w-full mb-2" required>
+                    <select name="status" class="p-2 border rounded w-full mb-2">
+                        <option value="Pending">Pending</option>
+                        <?php if ($is_admin): ?>
+                            <option value="In Transit">In Transit</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                        <?php endif; ?>
+                    </select>
+                    <?php if ($is_admin): ?>
+                        <select name="driver_id" class="p-2 border rounded w-full mb-2">
+                            <option value="">Select Driver (optional)</option>
+                            <?php
+                            $drivers = $conn->query("SELECT id, fullname FROM users WHERE role = 'driver'");
+                            while ($driver = $drivers->fetch_assoc()) {
+                                echo "<option value='{$driver['id']}'>" . htmlspecialchars($driver['fullname']) . "</option>";
+                            }
+                            $drivers->free();
+                            ?>
+                        </select>
+                    <?php endif; ?>
+                    <div class="flex space-x-2">
+                        <button type="submit" class="p-2 bg-green-500 text-white rounded">Save</button>
+                        <button type="button" onclick="closeModal()" class="p-2 bg-gray-500 text-white rounded">Cancel</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
+    <?php endif; ?>
 
     <!-- Order Details Panel (Placeholder) -->
     <div id="orderDetailsPanel" class="fixed top-0 right-0 w-full md:w-[480px] h-full bg-white shadow-lg transform translate-x-full transition-transform duration-300 z-50">
@@ -373,13 +404,11 @@ if (isset($_GET['export'])) {
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Mobile menu toggle
             document.getElementById('menuToggle').addEventListener('click', function() {
                 const sidebar = document.getElementById('sidebar');
                 sidebar.classList.toggle('open');
             });
 
-            // Close sidebar when clicking outside on mobile
             document.addEventListener('click', function(event) {
                 const sidebar = document.getElementById('sidebar');
                 const toggle = document.getElementById('menuToggle');

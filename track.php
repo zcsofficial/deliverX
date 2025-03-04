@@ -46,10 +46,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <h1 class="text-3xl font-['Pacifico'] text-primary">DeliverX</h1>
             <nav>
                 <ul class="flex space-x-6 text-sm">
-                    <li><a href="#" class="text-gray-600 hover:text-primary">Track</a></li>
-                    <li><a href="#" class="text-gray-600 hover:text-primary">Services</a></li>
+                    <li><a href="track.php" class="text-gray-600 hover:text-primary">Track</a></li>
+                    <li><a href="orders.php" class="text-gray-600 hover:text-primary">Order</a></li>
                     <li><a href="#" class="text-gray-600 hover:text-primary">Support</a></li>
-                    <li><a href="#" class="text-gray-600 hover:text-primary">Logout</a></li>
+                    <li><a href="logout.php" class="text-gray-600 hover:text-primary">Logout</a></li>
                 </ul>
             </nav>
         </div>

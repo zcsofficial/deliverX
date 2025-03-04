@@ -2,18 +2,20 @@
 session_start();
 include 'config.php';
 
-// Check if the user is already logged in
-if (isset($_SESSION['user_id'])) {
+// Check if the user is already logged in and redirect only if trying to access login.php
+if (isset($_SESSION['user_id']) && basename($_SERVER['PHP_SELF']) === 'login.php') {
     $role = $_SESSION['role'] ?? 'customer'; // Default to 'customer' if role is not set
     // Redirect based on role
     if ($role === 'admin') {
         header("Location: dashboard.php");
+        exit();
     } elseif ($role === 'driver') {
         header("Location: drivers.php");
+        exit();
     } else {
-        header("Location: track.php");
+        header("Location: track.php"); // Redirect customers to orders.php
+        exit();
     }
-    exit();
 }
 
 $error = '';
@@ -37,9 +39,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $user = $result->fetch_assoc();
 
             if (password_verify($password, $user['password'])) {
+                // Set session variables
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['fullname'] = $user['fullname'];
                 $_SESSION['role'] = $user['role'];
+
+                // Regenerate session ID to prevent session fixation
+                session_regenerate_id(true);
 
                 // Redirect based on role
                 if ($user['role'] === 'admin') {
@@ -47,7 +53,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 } elseif ($user['role'] === 'driver') {
                     header("Location: drivers.php");
                 } else {
-                    header("Location: track.php");
+                    header("Location: orders.php"); // Redirect customers to orders.php
                 }
                 exit();
             } else {
