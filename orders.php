@@ -265,6 +265,10 @@ if ($is_admin && isset($_GET['export'])) {
                                 <i class="ri-add-line"></i>
                                 New Order
                             </button>
+                            <button onclick="openEmergencyModal()" class="px-4 py-2 bg-red-600 text-white !rounded-button hover:bg-red-700 whitespace-nowrap flex items-center gap-2">
+                                <i class="ri-alarm-warning-line"></i>
+                                Emergency Order
+                            </button>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -366,6 +370,50 @@ if ($is_admin && isset($_GET['export'])) {
                 </form>
             </div>
         </div>
+
+        <!-- Add Emergency Order Modal -->
+        <div id="addEmergencyOrderModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                <h3 class="text-lg font-bold mb-4 text-red-600">Add Emergency Order</h3>
+                <form action="add_emergency_order.php" method="POST">
+                    <?php if ($is_admin): ?>
+                        <select name="customer_id" class="p-2 border rounded w-full mb-2" required>
+                            <option value="">Select Customer</option>
+                            <?php
+                            $customers = $conn->query("SELECT id, fullname FROM users WHERE role = 'customer'");
+                            while ($customer = $customers->fetch_assoc()) {
+                                echo "<option value='{$customer['id']}'>" . htmlspecialchars($customer['fullname']) . "</option>";
+                            }
+                            $customers->free();
+                            ?>
+                        </select>
+                    <?php else: ?>
+                        <input type="hidden" name="customer_id" value="<?= $user_id ?>">
+                    <?php endif; ?>
+                    <input type="text" name="order_id" placeholder="Emergency Order ID (e.g., E-ORD-20250220)" class="p-2 border rounded w-full mb-2" required>
+                    <input type="text" name="pickup_location" placeholder="Pickup Location" class="p-2 border rounded w-full mb-2" required>
+                    <input type="text" name="destination" placeholder="Destination" class="p-2 border rounded w-full mb-2" required>
+                    <input type="hidden" name="is_emergency" value="1">
+                    <input type="hidden" name="status" value="Pending">
+                    <?php if ($is_admin): ?>
+                        <select name="driver_id" class="p-2 border rounded w-full mb-2">
+                            <option value="">Select Driver (optional)</option>
+                            <?php
+                            $drivers = $conn->query("SELECT id, fullname FROM users WHERE role = 'driver'");
+                            while ($driver = $drivers->fetch_assoc()) {
+                                echo "<option value='{$driver['id']}'>" . htmlspecialchars($driver['fullname']) . "</option>";
+                            }
+                            $drivers->free();
+                            ?>
+                        </select>
+                    <?php endif; ?>
+                    <div class="flex space-x-2">
+                        <button type="submit" class="p-2 bg-red-600 text-white rounded">Save Emergency</button>
+                        <button type="button" onclick="closeEmergencyModal()" class="p-2 bg-gray-500 text-white rounded">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     <?php endif; ?>
 
     <!-- Order Details Panel (Placeholder) -->
@@ -390,6 +438,14 @@ if ($is_admin && isset($_GET['export'])) {
 
         function closeModal() {
             document.getElementById("addOrderModal").classList.add("hidden");
+        }
+
+        function openEmergencyModal() {
+            document.getElementById("addEmergencyOrderModal").classList.remove("hidden");
+        }
+
+        function closeEmergencyModal() {
+            document.getElementById("addEmergencyOrderModal").classList.add("hidden");
         }
 
         function openDetails(orderId) {
