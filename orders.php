@@ -108,7 +108,7 @@ if ($is_admin && isset($_GET['export'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeliverX - Order Management</title>
+    <title>Pick Fast - Order Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -172,7 +172,7 @@ if ($is_admin && isset($_GET['export'])) {
     <div class="flex h-screen">
         <aside class="w-64 bg-primary text-white fixed h-full sidebar" id="sidebar">
             <div class="p-4">
-                <h1 class="text-2xl font-['Pacifico'] mb-8">DeliverX</h1>
+                <h1 class="text-2xl font-['Pacifico'] mb-8">Pick Fast</h1>
                 <nav class="space-y-4">
                     <?php if ($is_admin): ?>
                         <a href="dashboard.php" class="flex items-center space-x-3 p-2 hover:bg-white/10 rounded-button">
@@ -263,7 +263,7 @@ if ($is_admin && isset($_GET['export'])) {
                         <?php if ($is_admin || $is_customer): ?>
                             <button onclick="openModal()" class="px-4 py-2 bg-primary text-white !rounded-button hover:bg-gray-800 whitespace-nowrap flex items-center gap-2">
                                 <i class="ri-add-line"></i>
-                                New Order
+                                New Request
                             </button>
                             <button onclick="openEmergencyModal()" class="px-4 py-2 bg-red-600 text-white !rounded-button hover:bg-red-700 whitespace-nowrap flex items-center gap-2">
                                 <i class="ri-alarm-warning-line"></i>

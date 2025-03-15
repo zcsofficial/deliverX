@@ -107,7 +107,7 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeliverX Admin Dashboard</title>
+    <title>Pick Fast Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -238,7 +238,7 @@ $conn->close();
     <div class="flex h-screen">
         <aside class="w-64 bg-primary text-white fixed h-full sidebar" id="sidebar">
             <div class="p-4">
-                <h1 class="text-2xl font-['Pacifico'] mb-8">DeliverX</h1>
+                <h1 class="text-2xl font-['Pacifico'] mb-8">Pick Fast</h1>
                 <nav class="space-y-4">
                     <a href="admin_dashboard.php" class="flex items-center space-x-3 p-2 bg-white/10 rounded-button">
                         <span class="w-5 h-5 flex items-center justify-center"><i class="ri-dashboard-line"></i></span>

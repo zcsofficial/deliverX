@@ -44,7 +44,7 @@ $current_status_step = $status_steps[$order['status']] ?? 0;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeliverX - Order Tracking</title>
+    <title>Pick Fast - Order Tracking</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css">
@@ -60,7 +60,7 @@ $current_status_step = $status_steps[$order['status']] ?? 0;
 
 <header class="fixed top-0 left-0 right-0 bg-black text-white z-50 h-16">
     <div class="container mx-auto px-4 h-full flex items-center justify-between">
-        <div class="font-['Pacifico'] text-2xl">DeliverX</div>
+        <div class="font-['Pacifico'] text-2xl">Pick Fast</div>
         <div class="flex items-center gap-4">
             <div class="text-sm">Order ID: #<?= htmlspecialchars($order['order_id']) ?></div>
             <div class="text-sm">ETA: <?= htmlspecialchars($order['eta'] ?? 'N/A') ?></div>

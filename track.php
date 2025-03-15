@@ -18,7 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeliverX - Track Your Package</title>
+    <title>Pick Fast - Track Your Package</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body class="bg-white min-h-screen">
     <header class="border-b">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 class="text-3xl font-['Pacifico'] text-primary">DeliverX</h1>
+            <h1 class="text-3xl font-['Pacifico'] text-primary">Pick Fast</h1>
             <nav>
                 <ul class="flex space-x-6 text-sm">
                     <li><a href="track.php" class="text-gray-600 hover:text-primary">Track</a></li>
